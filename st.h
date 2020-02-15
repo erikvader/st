@@ -94,6 +94,7 @@ void kpressNormalMode(char const * ksym, uint32_t len, bool esc, bool enter, boo
 void normalMode(Arg const *);
 void onNormalModeStart();
 void onNormalModeStop();
+void newterm(const Arg *);
 void printscreen(const Arg *);
 void printsel(const Arg *);
 void sendbreak(const Arg *);
