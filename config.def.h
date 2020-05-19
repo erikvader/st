@@ -210,6 +210,8 @@ static Shortcut shortcuts[] = {
 	{ AltMask,              XK_u,           kscrollup,      {.i = -1} },
 	{ AltMask,              XK_d,           kscrolldown,    {.i = -1} },
 	{ AltMask,              XK_g,           kscrolldown,    {.i = INT_MAX} },
+	{ AltMask,              XK_j,           kscrolldown,    {.i = 1} },
+	{ AltMask,              XK_k,           kscrollup,      {.i = 1} },
 	{ TERMMOD,              XK_N,           newterm,        {.i =  0} },
 };
 
