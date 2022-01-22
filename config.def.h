@@ -131,8 +131,9 @@ static const char *colorname[] = {
  */
 unsigned int defaultfg = 257;
 unsigned int defaultbg = 0;
-static unsigned int defaultcs = 257;
+unsigned int defaultcs = 257;
 static unsigned int defaultrcs = 257;
+unsigned int const currentBg = 8, buffSize = 255;
 
 /*
  * Colors used, when the specific fg == defaultfg. So in reverse mode this
@@ -209,6 +210,11 @@ static Shortcut shortcuts[] = {
 	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 	{ TERMMOD,              XK_N,           newterm,        {.i =  0} },
+	{ MODKEY,               XK_k,           historyShiftY,  {.i = -1} },
+	{ MODKEY,               XK_j,           historyShiftY,  {.i =  1} },
+	{ MODKEY,               XK_u,           historyShiftY,  {.i = -20} },
+	{ MODKEY,               XK_d,           historyShiftY,  {.i =  20} },
+	{ MODKEY,               XK_g,           historyQuit,    {.i =  0} },
 };
 
 /*
