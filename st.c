@@ -237,7 +237,7 @@ static const Rune utfmax[UTF_SIZ + 1] = {0x10FFFF, 0x7F, 0x7FF, 0xFFFF, 0x10FFFF
 
 int buffCols;
 extern int const buffSize;
-int histOp, histMode, histOff, histOffX, insertOff, altToggle;
+int histOp, histMode, histOff, histOffX, insertOff, altToggle, *mark;
 Line *buf = NULL;
 static TCursor c[3];
 static inline int rows() { return IS_SET(MODE_ALTSCREEN) ? term.row : buffSize;}
@@ -502,6 +502,8 @@ int historyMove(int x, int y, int ly) {
 	historyOpToggle(-1, 1);
 	return fin;
 }
+
+#include "normalMode.c"
 
 void selnormalize(void) {
 	historyOpToggle(1, 1);
@@ -2611,6 +2613,7 @@ tresize(int col, int row)
 	buf = xrealloc(buf, (buffSize + row) * sizeof(Line));
 	term.alt  = xrealloc(term.alt,  row * sizeof(Line));
 	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
+	mark = xrealloc(mark, col * row * sizeof(*mark));
 	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
 
 	/* resize each row to new width, zero-pad if needed */
@@ -2638,6 +2641,7 @@ tresize(int col, int row)
 	}
 	for (i = 0; i < row; ++i) buf[buffSize + i] = buf[i];
 	term.line = &buf[*(histOp?&histOff:&insertOff) +=MAX(term.c.y-row+1,0)];
+	memset(mark, 0, col * row * sizeof(*mark));
 	/* update terminal size */
 	term.col = colSet;
 	buffCols = col;
@@ -2700,6 +2704,7 @@ draw(void)
 	if (term.line[term.c.y][cx].mode & ATTR_WDUMMY)
 		cx--;
 
+	if (histMode) historyPreDraw();
 	drawregion(0, 0, term.col, term.row);
 	if (!histMode)
 	xdrawcursor(cx, term.c.y, term.line[term.c.y][cx],
