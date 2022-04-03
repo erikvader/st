@@ -1102,6 +1102,85 @@ tscrollup(int orig, int n)
 	selscroll(orig, -n);
 }
 
+static int is_tmux(pid_t pid)
+{
+	char filename[64];
+	snprintf(filename, sizeof filename, "/proc/%d/comm", pid);
+
+	FILE *file = fopen(filename, "r");
+	if (file == NULL) {
+		return 0;
+	}
+
+	int retval = 0;
+	char command[64];
+	size_t read = fread(command, sizeof(char), sizeof command, file);
+	if (read >= 4) {
+		retval = strncmp("tmux", command, 4) == 0;
+	}
+
+	fclose(file);
+	return retval;
+}
+
+static void null_terminate_buffer(char *buf, size_t buf_size, size_t read) {
+	size_t i = read;
+	if (i >= buf_size) i = buf_size - 1;
+	if (i > 0 && buf[i-1] == '\n') i--;
+	buf[i] = '\0';
+}
+
+static char* pts_from_pid(pid_t pid) {
+	char command[512];
+	snprintf(command, sizeof command, "ps --pid %d -o tty --no-headers", pid);
+
+	FILE *proc = popen(command, "r");
+	if (proc == NULL) {
+		return NULL;
+	}
+
+	char buf[128];
+	size_t read = fread(buf, sizeof(char), sizeof buf, proc);
+	if (read <= 0) {
+		pclose(proc);
+		return NULL;
+	}
+	null_terminate_buffer(buf, sizeof buf, read);
+
+	pclose(proc);
+	return strdup(buf);
+}
+
+static pid_t pid_from_pts(char* pts) {
+	char command[512];
+	snprintf(command, sizeof command, "tmux lsp -st \"$(tmux lsc -t /dev/%s -F '#{client_session}')\" -f '#{pane_active}' -F '#{pane_pid}'", pts);
+
+	FILE *proc = popen(command, "r");
+	if (proc == NULL) {
+		return -1;
+	}
+
+	char buf[64];
+	size_t read = fread(buf, sizeof(char), sizeof buf, proc);
+	if (read <= 0) {
+		pclose(proc);
+		return -1;
+	}
+	null_terminate_buffer(buf, sizeof buf, read);
+
+	pclose(proc);
+	return atoi(buf);
+}
+
+static pid_t shell_pid_from_tmux(pid_t tmux_pid) {
+	signal(SIGCHLD, SIG_DFL);
+	char *pts = pts_from_pid(tmux_pid);
+	if (pts == NULL) return -1;
+	pid_t retval = pid_from_pts(pts);
+	free(pts);
+	return retval;
+}
+
 void
 newterm(const Arg* a)
 {
@@ -1110,14 +1189,28 @@ newterm(const Arg* a)
 		die("fork failed: %s\n", strerror(errno));
 		break;
 	case 0:
-		chdir(getcwd_by_pid(pid));
-		execlp("st", "./st", NULL);
+		if (is_tmux(pid)) {
+			pid_t shell_pid = shell_pid_from_tmux(pid);
+			if (shell_pid < 0)
+				die("failed to find shell_pid from tmux\n");
+			char *cwd = getcwd_by_pid(shell_pid);
+			chdir(cwd);
+			free(cwd);
+
+			unsetenv("TMUX");
+			execlp("st", "./st", "tmux", "new-session", NULL);
+		} else {
+			char *cwd = getcwd_by_pid(pid);
+			chdir(cwd);
+			free(cwd);
+			execlp("st", "./st", NULL);
+		}
 		break;
 	}
 }
 
 static char *getcwd_by_pid(pid_t pid) {
-	char buf[32];
+	char buf[64];
 	snprintf(buf, sizeof buf, "/proc/%d/cwd", pid);
 	return realpath(buf, NULL);
 }
